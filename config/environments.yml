@@ -1,0 +1,85 @@
+# Environment-specific configurations
+
+development:
+  base_url: "http://localhost:3000"
+  database_url: "sqlite:///test_dev.db"
+  headless: false
+  timeout: 10
+  screenshot_on_failure: true
+  performance_monitoring: false
+  log_level: "DEBUG"
+  parallel_workers: 1
+  
+staging:
+  base_url: "https://staging.example.com"
+  database_url: "postgresql://staging_user:staging_pass@staging_db:5432/test_db"
+  headless: true
+  timeout: 15
+  screenshot_on_failure: true
+  performance_monitoring: true
+  log_level: "INFO"
+  parallel_workers: 2
+  
+production:
+  base_url: "https://example.com"
+  database_url: "postgresql://prod_user:prod_pass@prod_db:5432/test_db"
+  headless: true
+  timeout: 20
+  screenshot_on_failure: true
+  performance_monitoring: true
+  log_level: "WARNING"
+  parallel_workers: 4
+  read_only: true
+
+# Browser configurations
+browsers:
+  chrome:
+    driver_path: "auto"  # Use webdriver-manager
+    options:
+      - "--no-sandbox"
+      - "--disable-dev-shm-usage"
+      - "--disable-gpu"
+      - "--window-size=1920,1080"
+      
+  firefox:
+    driver_path: "auto"
+    options:
+      - "--width=1920"
+      - "--height=1080"
+      
+  edge:
+    driver_path: "auto"
+    options:
+      - "--no-sandbox"
+      - "--disable-dev-shm-usage"
+
+# Test data configuration
+test_data:
+  users:
+    admin:
+      username: "admin@example.com"
+      password: "admin123"
+    regular:
+      username: "user@example.com"  
+      password: "user123"
+  
+# Performance thresholds
+performance:
+  page_load_time: 3.0  # seconds
+  dom_content_loaded: 2.0  # seconds
+  first_contentful_paint: 1.5  # seconds
+  largest_contentful_paint: 2.5  # seconds
+  cumulative_layout_shift: 0.1
+
+# Notification settings
+notifications:
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#test-results"
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    sender: "test-automation@example.com"
+    recipients: []
