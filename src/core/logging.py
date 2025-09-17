@@ -14,7 +14,7 @@ from pathlib import Path
 import threading
 from contextlib import contextmanager
 
-from .exceptions import TestFrameworkException, ErrorSeverity
+from .exceptions import TestFrameworkException
 
 
 class LogLevel(Enum):
@@ -345,14 +345,11 @@ class TestLogger:
             # 프레임워크 예외인 경우 구조화된 정보 사용
             context.update({
                 'error_code': exception.error_code,
-                'severity': exception.severity.value,
-                'category': exception.category.value,
                 'exception_context': exception.context
             })
             
-            level_method = self.error if exception.severity != ErrorSeverity.CRITICAL else self.critical
-            level_method(f"프레임워크 예외 발생: {exception.message}", 
-                        exception=exception, **context)
+            self.error(f"프레임워크 예외 발생: {exception.message}", 
+                      exception=exception, **context)
         else:
             # 일반 예외
             self.error(f"예외 발생: {str(exception)}", exception=exception, **context)
