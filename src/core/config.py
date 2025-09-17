@@ -71,6 +71,137 @@ class TestDataConfig:
     database_cleanup: bool = True
 
 
+@dataclass
+class SecurityConfig:
+    """Security configuration for sensitive information management."""
+    test_username: Optional[str] = None
+    test_password: Optional[str] = None
+    api_key: Optional[str] = None
+    database_url: Optional[str] = None
+    admin_username: Optional[str] = None
+    admin_password: Optional[str] = None
+    jwt_secret: Optional[str] = None
+    encryption_key: Optional[str] = None
+    ssl_verify: bool = True
+    https_only: bool = True
+    mask_sensitive_data: bool = True
+    auto_cleanup_data: bool = True
+    
+    def __post_init__(self):
+        """Load security settings from environment variables."""
+        self._load_from_environment()
+        self._validate_security_settings()
+    
+    def _load_from_environment(self) -> None:
+        """Load security configuration from environment variables."""
+        env_mappings = {
+            'test_username': 'TEST_USERNAME',
+            'test_password': 'TEST_PASSWORD',
+            'api_key': 'API_KEY',
+            'database_url': 'DATABASE_URL',
+            'admin_username': 'ADMIN_USERNAME',
+            'admin_password': 'ADMIN_PASSWORD',
+            'jwt_secret': 'JWT_SECRET',
+            'encryption_key': 'ENCRYPTION_KEY',
+            'ssl_verify': 'SSL_VERIFY',
+            'https_only': 'HTTPS_ONLY',
+            'mask_sensitive_data': 'MASK_SENSITIVE_DATA',
+            'auto_cleanup_data': 'AUTO_CLEANUP_DATA'
+        }
+        
+        for attr_name, env_var in env_mappings.items():
+            env_value = os.getenv(env_var)
+            if env_value is not None:
+                # Convert string values to appropriate types
+                if attr_name in ['ssl_verify', 'https_only', 'mask_sensitive_data', 'auto_cleanup_data']:
+                    env_value = env_value.lower() in ('true', '1', 'yes', 'on')
+                
+                setattr(self, attr_name, env_value)
+                logger.debug(f"Loaded security setting from environment: {env_var}")
+    
+    def _validate_security_settings(self) -> None:
+        """Validate security configuration settings."""
+        # Check for required settings in production
+        if os.getenv('TEST_ENV', 'development') == 'production':
+            required_settings = ['test_username', 'test_password']
+            missing_settings = [
+                setting for setting in required_settings 
+                if getattr(self, setting) is None
+            ]
+            
+            if missing_settings:
+                raise ConfigurationException(
+                    f"Required security settings missing in production: {missing_settings}"
+                )
+        
+        # Validate URL format for database_url if provided
+        if self.database_url and not self._is_valid_database_url(self.database_url):
+            raise ConfigurationException(f"Invalid database URL format: {self.database_url}")
+    
+    def _is_valid_database_url(self, url: str) -> bool:
+        """Validate database URL format."""
+        valid_schemes = ['sqlite', 'postgresql', 'mysql', 'oracle', 'mssql']
+        return any(url.startswith(f"{scheme}://") for scheme in valid_schemes)
+    
+    def get_masked_config(self) -> Dict[str, Any]:
+        """Get configuration with sensitive values masked."""
+        config = {}
+        sensitive_fields = ['test_password', 'admin_password', 'api_key', 'jwt_secret', 'encryption_key']
+        
+        for field_name in self.__dataclass_fields__:
+            value = getattr(self, field_name)
+            if field_name in sensitive_fields and value is not None:
+                config[field_name] = "***MASKED***"
+            else:
+                config[field_name] = value
+        
+        return config
+    
+    def has_credentials(self) -> bool:
+        """Check if basic test credentials are available."""
+        return (self.test_username is not None and self.test_username != '' and 
+                self.test_password is not None and self.test_password != '')
+    
+    def has_admin_credentials(self) -> bool:
+        """Check if admin credentials are available."""
+        return (self.admin_username is not None and self.admin_username != '' and 
+                self.admin_password is not None and self.admin_password != '')
+    
+    def has_api_key(self) -> bool:
+        """Check if API key is available."""
+        return self.api_key is not None and self.api_key != ''
+    
+    def get_database_config(self) -> Optional[Dict[str, str]]:
+        """Get database configuration if available."""
+        if not self.database_url:
+            return None
+        
+        # Parse database URL (simplified)
+        if '://' in self.database_url:
+            scheme, rest = self.database_url.split('://', 1)
+            return {
+                'scheme': scheme,
+                'url': self.database_url,
+                'masked_url': self._mask_database_url(self.database_url)
+            }
+        
+        return None
+    
+    def _mask_database_url(self, url: str) -> str:
+        """Mask sensitive information in database URL."""
+        if not self.mask_sensitive_data:
+            return url
+        
+        # Simple masking for database URLs
+        if '://' in url and '@' in url:
+            scheme, rest = url.split('://', 1)
+            if '@' in rest:
+                credentials, host_part = rest.split('@', 1)
+                return f"{scheme}://***:***@{host_part}"
+        
+        return url
+
+
 class ConfigManager:
     """
     Centralized configuration management system.
@@ -94,6 +225,7 @@ class ConfigManager:
         self.config_dir = Path(config_dir)
         self.environment = environment or os.getenv('TEST_ENV', 'development')
         self._config_cache: Dict[str, Any] = {}
+        self._security_config: Optional[SecurityConfig] = None
         self._load_configurations()
         
         logger.info(f"ConfigManager initialized for environment: {self.environment}")
@@ -115,6 +247,9 @@ class ConfigManager:
             
             # Load test data configuration
             self._load_test_data_config()
+            
+            # Load security configuration
+            self._load_security_config()
             
             # Apply environment variable overrides
             self._apply_env_overrides()
@@ -225,6 +360,15 @@ class ConfigManager:
         
         logger.debug("Loaded test data configuration")
     
+    def _load_security_config(self) -> None:
+        """Load security configuration."""
+        try:
+            self._security_config = SecurityConfig()
+            logger.debug("Loaded security configuration")
+        except Exception as e:
+            logger.error(f"Failed to load security configuration: {e}")
+            raise ConfigurationException(f"Security configuration loading failed: {e}")
+    
     def _apply_env_overrides(self) -> None:
         """Apply environment variable overrides to configuration."""
         env_overrides = {
@@ -306,6 +450,12 @@ class ConfigManager:
         """Get test data configuration."""
         return self._config_cache.get('test_data', TestDataConfig())
     
+    def get_security_config(self) -> SecurityConfig:
+        """Get security configuration."""
+        if self._security_config is None:
+            self._security_config = SecurityConfig()
+        return self._security_config
+    
     def get_base_url(self) -> str:
         """Get base URL for current environment."""
         return self.get('environment.base_url', 'http://localhost:3000')
@@ -341,6 +491,51 @@ class ConfigManager:
     def is_read_only(self) -> bool:
         """Check if environment is read-only (production)."""
         return self.get('environment.read_only', False)
+    
+    def get_test_credentials(self) -> Optional[Dict[str, str]]:
+        """Get test user credentials."""
+        security_config = self.get_security_config()
+        if security_config.has_credentials():
+            return {
+                'username': security_config.test_username,
+                'password': security_config.test_password
+            }
+        return None
+    
+    def get_admin_credentials(self) -> Optional[Dict[str, str]]:
+        """Get admin user credentials."""
+        security_config = self.get_security_config()
+        if security_config.has_admin_credentials():
+            return {
+                'username': security_config.admin_username,
+                'password': security_config.admin_password
+            }
+        return None
+    
+    def get_api_key(self) -> Optional[str]:
+        """Get API key."""
+        security_config = self.get_security_config()
+        return security_config.api_key if security_config.has_api_key() else None
+    
+    def is_ssl_verification_enabled(self) -> bool:
+        """Check if SSL verification is enabled."""
+        security_config = self.get_security_config()
+        return security_config.ssl_verify
+    
+    def is_https_only(self) -> bool:
+        """Check if HTTPS-only mode is enabled."""
+        security_config = self.get_security_config()
+        return security_config.https_only
+    
+    def should_mask_sensitive_data(self) -> bool:
+        """Check if sensitive data should be masked."""
+        security_config = self.get_security_config()
+        return security_config.mask_sensitive_data
+    
+    def should_auto_cleanup_data(self) -> bool:
+        """Check if test data should be automatically cleaned up."""
+        security_config = self.get_security_config()
+        return security_config.auto_cleanup_data
     
     def validate_configuration(self) -> bool:
         """
@@ -412,6 +607,15 @@ class ConfigManager:
             'notification_enabled': {
                 'slack': self.get_notification_config().slack_enabled,
                 'email': self.get_notification_config().email_enabled
+            },
+            'security_settings': {
+                'has_test_credentials': self.get_security_config().has_credentials(),
+                'has_admin_credentials': self.get_security_config().has_admin_credentials(),
+                'has_api_key': self.get_security_config().has_api_key(),
+                'ssl_verify': self.is_ssl_verification_enabled(),
+                'https_only': self.is_https_only(),
+                'mask_sensitive_data': self.should_mask_sensitive_data(),
+                'auto_cleanup_data': self.should_auto_cleanup_data()
             }
         }
 
