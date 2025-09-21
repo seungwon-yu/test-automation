@@ -20,41 +20,39 @@ from ..core.exceptions import (
 
 class FormPage(BasePage):
     """
-    결제 페이지 Page Object 클래스
+    폼 페이지 Page Object 클래스
     
-    결제 기능의 모든 요소와 동작을 캡슐화하여
+    다양한 폼 요소와 동작을 캡슐화하여
     테스트 코드에서 쉽게 사용할 수 있도록 합니다.
     """
     
     # ==================== 페이지 요소 로케이터 ====================
     
-    # 결제 페이지 컨테이너
-    PAYMENT_CONTAINER = (By.CSS_SELECTOR, ".payment-container")
-    CHECKOUT_FORM = (By.CSS_SELECTOR, ".checkout-form")
+    # 폼 페이지 컨테이너
+    FORM_CONTAINER = (By.CSS_SELECTOR, ".form-container")
+    MAIN_FORM = (By.CSS_SELECTOR, ".main-form")
     
-    # 대체 결제 컨테이너 로케이터들
-    ALT_PAYMENT_CONTAINER_LOCATORS = [
-        (By.CSS_SELECTOR, ".checkout-container"),
-        (By.CSS_SELECTOR, ".payment-form"),
-        (By.CSS_SELECTOR, ".billing-container"),
-        (By.CSS_SELECTOR, "[data-testid='payment']"),
-        (By.XPATH, "//*[contains(@class, 'payment')]"),
-        (By.XPATH, "//*[contains(@class, 'checkout')]")
+    # 대체 폼 컨테이너 로케이터들
+    ALT_FORM_CONTAINER_LOCATORS = [
+        (By.CSS_SELECTOR, ".form-wrapper"),
+        (By.CSS_SELECTOR, ".contact-form"),
+        (By.CSS_SELECTOR, ".registration-form"),
+        (By.CSS_SELECTOR, "[data-testid='form']"),
+        (By.XPATH, "//*[contains(@class, 'form')]"),
+        (By.XPATH, "//form")
     ]
     
-    # 배송 정보 섹션
-    SHIPPING_SECTION = (By.CSS_SELECTOR, ".shipping-section")
-    SHIPPING_FIRST_NAME = (By.ID, "shipping-first-name")
-    SHIPPING_LAST_NAME = (By.ID, "shipping-last-name")
-    SHIPPING_ADDRESS = (By.ID, "shipping-address")
-    SHIPPING_CITY = (By.ID, "shipping-city")
-    SHIPPING_STATE = (By.ID, "shipping-state")
-    SHIPPING_ZIP = (By.ID, "shipping-zip")
-    SHIPPING_COUNTRY = (By.ID, "shipping-country")
-    SHIPPING_PHONE = (By.ID, "shipping-phone")
+    # 개인 정보 섹션
+    PERSONAL_INFO_SECTION = (By.CSS_SELECTOR, ".personal-info-section")
+    FIRST_NAME = (By.ID, "first-name")
+    LAST_NAME = (By.ID, "last-name")
+    EMAIL = (By.ID, "email")
+    PHONE = (By.ID, "phone")
+    DATE_OF_BIRTH = (By.ID, "date-of-birth")
+    GENDER = (By.ID, "gender")
     
-    # 대체 배송 정보 로케이터들
-    ALT_SHIPPING_LOCATORS = {
+    # 대체 개인 정보 로케이터들
+    ALT_PERSONAL_INFO_LOCATORS = {
         'first_name': [
             (By.NAME, "firstName"),
             (By.NAME, "first_name"),
@@ -67,23 +65,18 @@ class FormPage(BasePage):
             (By.CSS_SELECTOR, "input[placeholder*='Last Name' i]"),
             (By.XPATH, "//input[contains(@placeholder, 'Last')]")
         ],
-        'address': [
-            (By.NAME, "address"),
-            (By.NAME, "street"),
-            (By.CSS_SELECTOR, "input[placeholder*='Address' i]"),
-            (By.XPATH, "//input[contains(@placeholder, 'Address')]")
+        'email': [
+            (By.NAME, "email"),
+            (By.CSS_SELECTOR, "input[type='email']"),
+            (By.CSS_SELECTOR, "input[placeholder*='Email' i]"),
+            (By.XPATH, "//input[contains(@placeholder, 'Email')]")
         ],
-        'city': [
-            (By.NAME, "city"),
-            (By.CSS_SELECTOR, "input[placeholder*='City' i]"),
-            (By.XPATH, "//input[contains(@placeholder, 'City')]")
-        ],
-        'zip': [
-            (By.NAME, "zip"),
-            (By.NAME, "zipCode"),
-            (By.NAME, "postal_code"),
-            (By.CSS_SELECTOR, "input[placeholder*='Zip' i]"),
-            (By.XPATH, "//input[contains(@placeholder, 'Zip')]")
+        'phone': [
+            (By.NAME, "phone"),
+            (By.NAME, "telephone"),
+            (By.CSS_SELECTOR, "input[type='tel']"),
+            (By.CSS_SELECTOR, "input[placeholder*='Phone' i]"),
+            (By.XPATH, "//input[contains(@placeholder, 'Phone')]")
         ]
     }
     
