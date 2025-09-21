@@ -123,6 +123,22 @@ class PageLoadTimeoutException(PageObjectException):
                         context=context, **kwargs)
 
 
+class LoginException(PageObjectException):
+    """로그인 관련 예외"""
+    
+    def __init__(self, message: str, username: Optional[str] = None, 
+                 error_type: Optional[str] = None, **kwargs):
+        context = kwargs.get('context', {})
+        if username:
+            context['username'] = username
+        if error_type:
+            context['error_type'] = error_type
+        
+        super().__init__(message, page_name="LoginPage",
+                        error_code="LOGIN_FAILED",
+                        context=context, **kwargs)
+
+
 class ConfigurationException(TestFrameworkException):
     """설정 관련 예외"""
     
