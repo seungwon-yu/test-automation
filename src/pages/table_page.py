@@ -1,11 +1,11 @@
 """
-CartPage 클래스 - 장바구니 페이지 Page Object
+TablePage 클래스 - 데이터 테이블 페이지 Page Object
 
-이 모듈은 장바구니 페이지의 UI 요소와 동작을 캡슐화합니다.
-상품 추가/제거, 수량 변경, 총액 계산 등의 기능을 제공합니다.
+이 모듈은 데이터 테이블 페이지의 UI 요소와 동작을 캡슐화합니다.
+테이블 데이터 읽기, 정렬, 필터링, 페이지네이션 등의 기능을 제공합니다.
 """
 
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import Select
@@ -18,949 +18,637 @@ from ..core.exceptions import (
 )
 
 
-class CartPage(BasePage):
+class TablePage(BasePage):
     """
-    장바구니 페이지 Page Object 클래스
+    데이터 테이블 페이지 Page Object 클래스
     
-    장바구니 기능의 모든 요소와 동작을 캡슐화하여
+    테이블 기능의 모든 요소와 동작을 캡슐화하여
     테스트 코드에서 쉽게 사용할 수 있도록 합니다.
     """
     
     # ==================== 페이지 요소 로케이터 ====================
     
-    # 장바구니 컨테이너 및 기본 요소들
-    CART_CONTAINER = (By.CSS_SELECTOR, ".cart-container")
-    CART_ITEMS_LIST = (By.CSS_SELECTOR, ".cart-items")
-    CART_ITEM = (By.CSS_SELECTOR, ".cart-item")
-    EMPTY_CART_MESSAGE = (By.CSS_SELECTOR, ".empty-cart")
+    # 테이블 컨테이너
+    TABLE_CONTAINER = (By.CSS_SELECTOR, ".table-container")
+    DATA_TABLE = (By.CSS_SELECTOR, "table")
+    TABLE_HEADER = (By.CSS_SELECTOR, "thead")
+    TABLE_BODY = (By.CSS_SELECTOR, "tbody")
     
-    # 대체 장바구니 컨테이너 로케이터들
-    ALT_CART_CONTAINER_LOCATORS = [
-        (By.CSS_SELECTOR, ".shopping-cart"),
-        (By.CSS_SELECTOR, ".basket"),
-        (By.CSS_SELECTOR, ".cart"),
-        (By.CSS_SELECTOR, "[data-testid='cart']"),
-        (By.XPATH, "//*[contains(@class, 'cart')]"),
-        (By.XPATH, "//*[contains(@class, 'basket')]")
+    # 테이블 행과 열
+    TABLE_ROWS = (By.CSS_SELECTOR, "tbody tr")
+    TABLE_HEADERS = (By.CSS_SELECTOR, "thead th")
+    TABLE_CELLS = (By.CSS_SELECTOR, "td")
+    
+    # 검색 및 필터
+    SEARCH_INPUT = (By.CSS_SELECTOR, ".search-input")
+    SEARCH_BUTTON = (By.CSS_SELECTOR, ".search-button")
+    FILTER_DROPDOWN = (By.CSS_SELECTOR, ".filter-select")
+    CLEAR_FILTER_BUTTON = (By.CSS_SELECTOR, ".clear-filter")
+    
+    # 정렬
+    SORT_BUTTONS = (By.CSS_SELECTOR, ".sort-button")
+    SORT_ASC = (By.CSS_SELECTOR, ".sort-asc")
+    SORT_DESC = (By.CSS_SELECTOR, ".sort-desc")
+    
+    # 페이지네이션
+    PAGINATION_CONTAINER = (By.CSS_SELECTOR, ".pagination")
+    PREV_PAGE_BUTTON = (By.CSS_SELECTOR, ".prev-page")
+    NEXT_PAGE_BUTTON = (By.CSS_SELECTOR, ".next-page")
+    PAGE_NUMBERS = (By.CSS_SELECTOR, ".page-number")
+    CURRENT_PAGE = (By.CSS_SELECTOR, ".current-page")
+    
+    # 행 선택 및 액션
+    ROW_CHECKBOXES = (By.CSS_SELECTOR, "input[type='checkbox']")
+    SELECT_ALL_CHECKBOX = (By.CSS_SELECTOR, ".select-all")
+    ACTION_BUTTONS = (By.CSS_SELECTOR, ".action-button")
+    DELETE_BUTTON = (By.CSS_SELECTOR, ".delete-button")
+    EDIT_BUTTON = (By.CSS_SELECTOR, ".edit-button")
+    
+    # 테이블 정보
+    TOTAL_RECORDS = (By.CSS_SELECTOR, ".total-records")
+    RECORDS_PER_PAGE = (By.CSS_SELECTOR, ".records-per-page")
+    NO_DATA_MESSAGE = (By.CSS_SELECTOR, ".no-data")
+    
+    # 대체 로케이터들
+    ALT_TABLE_LOCATORS = [
+        (By.CSS_SELECTOR, ".data-table"),
+        (By.CSS_SELECTOR, ".grid"),
+        (By.CSS_SELECTOR, "[data-testid='table']"),
+        (By.XPATH, "//table")
     ]
     
-    ALT_CART_ITEM_LOCATORS = [
-        (By.CSS_SELECTOR, ".cart-product"),
-        (By.CSS_SELECTOR, ".basket-item"),
-        (By.CSS_SELECTOR, ".shopping-item"),
-        (By.CSS_SELECTOR, "[data-testid='cart-item']"),
-        (By.XPATH, "//*[contains(@class, 'item')]")
+    ALT_SEARCH_LOCATORS = [
+        (By.CSS_SELECTOR, "input[placeholder*='Search' i]"),
+        (By.CSS_SELECTOR, ".filter-input"),
+        (By.XPATH, "//input[contains(@placeholder, 'Search')]")
     ]
-    
-    # 개별 상품 요소들
-    ITEM_NAME = (By.CSS_SELECTOR, ".item-name")
-    ITEM_PRICE = (By.CSS_SELECTOR, ".item-price")
-    ITEM_QUANTITY = (By.CSS_SELECTOR, ".item-quantity")
-    ITEM_TOTAL = (By.CSS_SELECTOR, ".item-total")
-    ITEM_IMAGE = (By.CSS_SELECTOR, ".item-image")
-    ITEM_SKU = (By.CSS_SELECTOR, ".item-sku")
-    
-    # 수량 조절 요소들
-    QUANTITY_INPUT = (By.CSS_SELECTOR, ".quantity-input")
-    QUANTITY_INCREASE = (By.CSS_SELECTOR, ".quantity-increase")
-    QUANTITY_DECREASE = (By.CSS_SELECTOR, ".quantity-decrease")
-    UPDATE_QUANTITY_BUTTON = (By.CSS_SELECTOR, ".update-quantity")
-    
-    # 대체 수량 조절 로케이터들
-    ALT_QUANTITY_INPUT_LOCATORS = [
-        (By.CSS_SELECTOR, "input[name='quantity']"),
-        (By.CSS_SELECTOR, ".qty-input"),
-        (By.CSS_SELECTOR, "[data-testid='quantity']"),
-        (By.XPATH, "//input[@type='number']")
-    ]
-    
-    ALT_QUANTITY_INCREASE_LOCATORS = [
-        (By.CSS_SELECTOR, ".qty-plus"),
-        (By.CSS_SELECTOR, ".increase-qty"),
-        (By.CSS_SELECTOR, "[data-action='increase']"),
-        (By.XPATH, "//button[contains(text(), '+')]")
-    ]
-    
-    ALT_QUANTITY_DECREASE_LOCATORS = [
-        (By.CSS_SELECTOR, ".qty-minus"),
-        (By.CSS_SELECTOR, ".decrease-qty"),
-        (By.CSS_SELECTOR, "[data-action='decrease']"),
-        (By.XPATH, "//button[contains(text(), '-')]")
-    ]
-    
-    # 상품 제거 요소들
-    REMOVE_ITEM_BUTTON = (By.CSS_SELECTOR, ".remove-item")
-    DELETE_ITEM_BUTTON = (By.CSS_SELECTOR, ".delete-item")
-    CLEAR_CART_BUTTON = (By.CSS_SELECTOR, ".clear-cart")
-    
-    # 대체 제거 버튼 로케이터들
-    ALT_REMOVE_ITEM_LOCATORS = [
-        (By.CSS_SELECTOR, ".remove"),
-        (By.CSS_SELECTOR, ".delete"),
-        (By.CSS_SELECTOR, ".trash"),
-        (By.CSS_SELECTOR, "[data-action='remove']"),
-        (By.XPATH, "//button[contains(text(), 'Remove')]"),
-        (By.XPATH, "//button[contains(text(), '제거')]"),
-        (By.XPATH, "//button[contains(text(), 'Delete')]")
-    ]
-    
-    # 총액 및 요약 정보 요소들
-    SUBTOTAL = (By.CSS_SELECTOR, ".subtotal")
-    TAX_AMOUNT = (By.CSS_SELECTOR, ".tax-amount")
-    SHIPPING_COST = (By.CSS_SELECTOR, ".shipping-cost")
-    DISCOUNT_AMOUNT = (By.CSS_SELECTOR, ".discount-amount")
-    TOTAL_AMOUNT = (By.CSS_SELECTOR, ".total-amount")
-    ITEM_COUNT = (By.CSS_SELECTOR, ".item-count")
-    
-    # 대체 총액 로케이터들
-    ALT_TOTAL_AMOUNT_LOCATORS = [
-        (By.CSS_SELECTOR, ".grand-total"),
-        (By.CSS_SELECTOR, ".final-total"),
-        (By.CSS_SELECTOR, ".cart-total"),
-        (By.CSS_SELECTOR, "[data-testid='total']"),
-        (By.XPATH, "//*[contains(@class, 'total')]")
-    ]
-    
-    # 쿠폰 및 할인 요소들
-    COUPON_INPUT = (By.CSS_SELECTOR, ".coupon-input")
-    APPLY_COUPON_BUTTON = (By.CSS_SELECTOR, ".apply-coupon")
-    COUPON_MESSAGE = (By.CSS_SELECTOR, ".coupon-message")
-    REMOVE_COUPON_BUTTON = (By.CSS_SELECTOR, ".remove-coupon")
-    
-    # 체크아웃 관련 요소들
-    CHECKOUT_BUTTON = (By.CSS_SELECTOR, ".checkout-button")
-    CONTINUE_SHOPPING_BUTTON = (By.CSS_SELECTOR, ".continue-shopping")
-    SAVE_FOR_LATER_BUTTON = (By.CSS_SELECTOR, ".save-for-later")
-    
-    # 대체 체크아웃 버튼 로케이터들
-    ALT_CHECKOUT_BUTTON_LOCATORS = [
-        (By.CSS_SELECTOR, ".proceed-checkout"),
-        (By.CSS_SELECTOR, ".checkout"),
-        (By.CSS_SELECTOR, "[data-testid='checkout']"),
-        (By.XPATH, "//button[contains(text(), 'Checkout')]"),
-        (By.XPATH, "//button[contains(text(), '결제')]"),
-        (By.XPATH, "//a[contains(text(), 'Checkout')]")
-    ]
-    
-    # 상태 및 메시지 요소들
-    LOADING_INDICATOR = (By.CSS_SELECTOR, ".loading")
-    SUCCESS_MESSAGE = (By.CSS_SELECTOR, ".success-message")
-    ERROR_MESSAGE = (By.CSS_SELECTOR, ".error-message")
-    
+
     def __init__(self, driver: WebDriver, base_url: str = None):
         """
-        CartPage 초기화
+        TablePage 초기화
         
         Args:
             driver: WebDriver 인스턴스
-            base_url: 장바구니 페이지 URL
+            base_url: 테이블 페이지 URL
         """
         super().__init__(driver, base_url)
         self.logger = get_logger(self.__class__.__name__)
-        
-        # 장바구니 페이지 특화 설정
-        self.update_timeout = 10  # 수량 업데이트 대기 시간
-        self.checkout_timeout = 15  # 체크아웃 처리 대기 시간
-        
-        self.logger.debug("CartPage initialized")
+        self.logger.debug("TablePage initialized")
     
     # ==================== 페이지 네비게이션 ====================
     
-    def navigate_to_cart(self, cart_url: str = None) -> None:
+    def navigate_to_table(self, table_url: str = None) -> None:
         """
-        장바구니 페이지로 이동
+        테이블 페이지로 이동
         
         Args:
-            cart_url: 장바구니 페이지 URL (None이면 기본 URL 사용)
+            table_url: 테이블 페이지 URL (None이면 기본 URL 사용)
         """
-        url = cart_url or f"{self.base_url}/cart"
-        self.logger.info(f"Navigating to cart page: {url}")
+        url = table_url or f"{self.base_url}/data"
+        self.logger.info(f"Navigating to table page: {url}")
         
         try:
             self.navigate_to(url)
-            self.wait_for_cart_page_load()
-            self.logger.info("Successfully navigated to cart page")
+            self.wait_for_table_load()
+            self.logger.info("Successfully navigated to table page")
         except Exception as e:
-            self.logger.error(f"Failed to navigate to cart page: {str(e)}")
+            self.logger.error(f"Failed to navigate to table page: {str(e)}")
             raise PageLoadTimeoutException(url, self.default_timeout)
     
-    def wait_for_cart_page_load(self) -> None:
-        """장바구니 페이지 로딩 완료 대기"""
-        self.logger.debug("Waiting for cart page to load")
+    def wait_for_table_load(self) -> None:
+        """테이블 페이지 로딩 완료 대기"""
+        self.logger.debug("Waiting for table page to load")
         
         try:
-            # 기본 페이지 로딩 대기
             self.wait_for_page_load()
-            
-            # 장바구니 컨테이너가 로드될 때까지 대기
-            self._find_cart_container()
-            
-            self.logger.debug("Cart page loaded successfully")
-            
-        except ElementNotFoundException as e:
-            self.logger.error(f"Cart page elements not found: {str(e)}")
-            raise
+            self._find_table()
+            self.logger.debug("Table page loaded successfully")
         except Exception as e:
-            self.logger.error(f"Cart page load failed: {str(e)}")
-            raise PageLoadTimeoutException("cart page", self.default_timeout)
+            self.logger.error(f"Table page load failed: {str(e)}")
+            raise PageLoadTimeoutException("table page", self.default_timeout)
     
-    # ==================== 요소 찾기 (Smart Locator) ====================
-    
-    def _find_cart_container(self) -> tuple:
-        """장바구니 컨테이너 찾기 (여러 로케이터 시도)"""
-        # 기본 로케이터 먼저 시도
-        if self.is_element_present(self.CART_CONTAINER, timeout=2):
-            return self.CART_CONTAINER
+    def _find_table(self) -> tuple:
+        """테이블 찾기"""
+        if self.is_element_present(self.DATA_TABLE, timeout=2):
+            return self.DATA_TABLE
         
-        # 대체 로케이터들 시도
-        for locator in self.ALT_CART_CONTAINER_LOCATORS:
+        for locator in self.ALT_TABLE_LOCATORS:
             if self.is_element_present(locator, timeout=1):
-                self.logger.debug(f"Found cart container with alternative locator: {locator}")
+                self.logger.debug(f"Found table with alternative locator: {locator}")
                 return locator
         
-        raise ElementNotFoundException("cart container", timeout=self.default_timeout)
+        raise ElementNotFoundException("data table", timeout=self.default_timeout)
     
-    def _find_cart_items(self) -> List[tuple]:
-        """장바구니 아이템들 찾기"""
-        item_locators = []
-        
-        # 기본 로케이터 시도
-        if self.is_element_present(self.CART_ITEM, timeout=2):
-            item_locators.append(self.CART_ITEM)
-        
-        # 대체 로케이터들 시도
-        for locator in self.ALT_CART_ITEM_LOCATORS:
-            if self.is_element_present(locator, timeout=1):
-                item_locators.append(locator)
-        
-        return item_locators
+    # ==================== 테이블 데이터 읽기 ====================
     
-    def _find_checkout_button(self) -> tuple:
-        """체크아웃 버튼 찾기 (여러 로케이터 시도)"""
-        # 기본 로케이터 먼저 시도
-        if self.is_element_present(self.CHECKOUT_BUTTON, timeout=2):
-            return self.CHECKOUT_BUTTON
-        
-        # 대체 로케이터들 시도
-        for locator in self.ALT_CHECKOUT_BUTTON_LOCATORS:
-            if self.is_element_present(locator, timeout=1):
-                self.logger.debug(f"Found checkout button with alternative locator: {locator}")
-                return locator
-        
-        raise ElementNotFoundException("checkout button", timeout=self.default_timeout)
-    
-    # ==================== 장바구니 상태 확인 ====================
-    
-    def is_cart_empty(self) -> bool:
+    def get_table_headers(self) -> List[str]:
         """
-        장바구니 비어있음 여부 확인
+        테이블 헤더 가져오기
         
         Returns:
-            장바구니가 비어있으면 True
+            헤더 텍스트 리스트
+        """
+        headers = []
+        
+        try:
+            if self.is_element_present(self.TABLE_HEADERS, timeout=2):
+                header_elements = self.find_elements(self.TABLE_HEADERS)
+                for header in header_elements:
+                    header_text = header.text.strip()
+                    if header_text:
+                        headers.append(header_text)
+            
+            self.logger.debug(f"Found {len(headers)} table headers")
+            return headers
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get table headers: {str(e)}")
+            return headers
+    
+    def get_table_data(self) -> List[Dict[str, str]]:
+        """
+        테이블 전체 데이터 가져오기
+        
+        Returns:
+            테이블 데이터 리스트 (각 행은 딕셔너리)
+        """
+        table_data = []
+        
+        try:
+            headers = self.get_table_headers()
+            
+            if self.is_element_present(self.TABLE_ROWS, timeout=2):
+                row_elements = self.find_elements(self.TABLE_ROWS)
+                
+                for row in row_elements:
+                    cell_elements = row.find_elements(*self.TABLE_CELLS)
+                    row_data = {}
+                    
+                    for i, cell in enumerate(cell_elements):
+                        header_key = headers[i] if i < len(headers) else f"column_{i}"
+                        row_data[header_key] = cell.text.strip()
+                    
+                    if row_data:  # 빈 행 제외
+                        table_data.append(row_data)
+            
+            self.logger.debug(f"Retrieved {len(table_data)} rows of table data")
+            return table_data
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get table data: {str(e)}")
+            return table_data
+    
+    def get_row_data(self, row_index: int) -> Dict[str, str]:
+        """
+        특정 행의 데이터 가져오기
+        
+        Args:
+            row_index: 행 인덱스 (0부터 시작)
+            
+        Returns:
+            행 데이터 딕셔너리
         """
         try:
-            # "빈 장바구니" 메시지 확인
-            if self.is_element_present(self.EMPTY_CART_MESSAGE, timeout=2):
+            headers = self.get_table_headers()
+            
+            if self.is_element_present(self.TABLE_ROWS, timeout=2):
+                row_elements = self.find_elements(self.TABLE_ROWS)
+                
+                if row_index < len(row_elements):
+                    row = row_elements[row_index]
+                    cell_elements = row.find_elements(*self.TABLE_CELLS)
+                    row_data = {}
+                    
+                    for i, cell in enumerate(cell_elements):
+                        header_key = headers[i] if i < len(headers) else f"column_{i}"
+                        row_data[header_key] = cell.text.strip()
+                    
+                    self.logger.debug(f"Retrieved data for row {row_index}")
+                    return row_data
+                else:
+                    self.logger.warning(f"Row index {row_index} out of range")
+                    return {}
+            
+            return {}
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get row data: {str(e)}")
+            return {}
+    
+    def get_column_data(self, column_name: str) -> List[str]:
+        """
+        특정 컬럼의 모든 데이터 가져오기
+        
+        Args:
+            column_name: 컬럼명
+            
+        Returns:
+            컬럼 데이터 리스트
+        """
+        column_data = []
+        
+        try:
+            headers = self.get_table_headers()
+            
+            if column_name not in headers:
+                self.logger.warning(f"Column '{column_name}' not found in headers")
+                return column_data
+            
+            column_index = headers.index(column_name)
+            
+            if self.is_element_present(self.TABLE_ROWS, timeout=2):
+                row_elements = self.find_elements(self.TABLE_ROWS)
+                
+                for row in row_elements:
+                    cell_elements = row.find_elements(*self.TABLE_CELLS)
+                    if column_index < len(cell_elements):
+                        cell_text = cell_elements[column_index].text.strip()
+                        column_data.append(cell_text)
+            
+            self.logger.debug(f"Retrieved {len(column_data)} values for column '{column_name}'")
+            return column_data
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get column data: {str(e)}")
+            return column_data
+    
+    # ==================== 검색 및 필터링 ====================
+    
+    def search_table(self, search_term: str) -> bool:
+        """
+        테이블 검색
+        
+        Args:
+            search_term: 검색어
+            
+        Returns:
+            검색 성공 여부
+        """
+        self.logger.debug(f"Searching table for: {search_term}")
+        
+        try:
+            search_input = None
+            
+            # 기본 검색 입력 필드 찾기
+            if self.is_element_present(self.SEARCH_INPUT, timeout=2):
+                search_input = self.SEARCH_INPUT
+            else:
+                # 대체 로케이터들 시도
+                for locator in self.ALT_SEARCH_LOCATORS:
+                    if self.is_element_present(locator, timeout=1):
+                        search_input = locator
+                        break
+            
+            if search_input:
+                self.input_text(search_input, search_term, clear_first=True)
+                
+                # 검색 버튼이 있으면 클릭
+                if self.is_element_present(self.SEARCH_BUTTON, timeout=2):
+                    self.click_element(self.SEARCH_BUTTON)
+                else:
+                    # Enter 키로 검색
+                    from selenium.webdriver.common.keys import Keys
+                    self.send_keys(search_input, Keys.RETURN)
+                
+                # 검색 결과 로딩 대기
+                self.wait(2)
+                
+                self.logger.debug(f"Search completed for: {search_term}")
+                return True
+            else:
+                self.logger.warning("Search input not found")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Failed to search table: {str(e)}")
+            return False
+    
+    def apply_filter(self, filter_value: str) -> bool:
+        """
+        필터 적용
+        
+        Args:
+            filter_value: 필터 값
+            
+        Returns:
+            필터 적용 성공 여부
+        """
+        try:
+            if self.is_element_present(self.FILTER_DROPDOWN, timeout=2):
+                self.select_dropdown_by_text(self.FILTER_DROPDOWN, filter_value)
+                self.wait(2)  # 필터 적용 대기
+                self.logger.debug(f"Filter applied: {filter_value}")
+                return True
+            else:
+                self.logger.warning("Filter dropdown not found")
+                return False
+        except Exception as e:
+            self.logger.error(f"Failed to apply filter: {str(e)}")
+            return False
+    
+    def clear_filters(self) -> bool:
+        """
+        필터 초기화
+        
+        Returns:
+            초기화 성공 여부
+        """
+        try:
+            if self.is_element_present(self.CLEAR_FILTER_BUTTON, timeout=2):
+                self.click_element(self.CLEAR_FILTER_BUTTON)
+                self.wait(2)
+                self.logger.debug("Filters cleared")
+                return True
+            else:
+                self.logger.warning("Clear filter button not found")
+                return False
+        except Exception as e:
+            self.logger.error(f"Failed to clear filters: {str(e)}")
+            return False
+    
+    # ==================== 정렬 ====================
+    
+    def sort_by_column(self, column_name: str, ascending: bool = True) -> bool:
+        """
+        컬럼별 정렬
+        
+        Args:
+            column_name: 정렬할 컬럼명
+            ascending: 오름차순 여부
+            
+        Returns:
+            정렬 성공 여부
+        """
+        self.logger.debug(f"Sorting by column '{column_name}', ascending: {ascending}")
+        
+        try:
+            headers = self.get_table_headers()
+            
+            if column_name not in headers:
+                self.logger.warning(f"Column '{column_name}' not found")
+                return False
+            
+            # 헤더 클릭으로 정렬 (일반적인 방법)
+            header_elements = self.find_elements(self.TABLE_HEADERS)
+            column_index = headers.index(column_name)
+            
+            if column_index < len(header_elements):
+                header_element = header_elements[column_index]
+                
+                # 정렬 버튼이 헤더 내에 있는지 확인
+                try:
+                    sort_button = header_element.find_element(By.CSS_SELECTOR, ".sort-button")
+                    sort_button.click()
+                except:
+                    # 헤더 자체를 클릭
+                    header_element.click()
+                
+                self.wait(2)  # 정렬 완료 대기
+                self.logger.debug(f"Column '{column_name}' sorted")
                 return True
             
-            # 장바구니 아이템 개수 확인
-            item_count = self.get_cart_item_count()
-            return item_count == 0
+            return False
             
         except Exception as e:
-            self.logger.error(f"Error checking if cart is empty: {str(e)}")
-            return True  # 오류 시 비어있다고 가정
+            self.logger.error(f"Failed to sort by column: {str(e)}")
+            return False
     
-    def get_cart_item_count(self) -> int:
+    # ==================== 페이지네이션 ====================
+    
+    def go_to_next_page(self) -> bool:
         """
-        장바구니 아이템 개수 가져오기
+        다음 페이지로 이동
         
         Returns:
-            장바구니 아이템 개수
+            이동 성공 여부
         """
         try:
-            # 아이템 개수 표시 요소에서 가져오기
-            if self.is_element_present(self.ITEM_COUNT, timeout=2):
-                count_text = self.get_text(self.ITEM_COUNT)
+            if self.is_element_present(self.NEXT_PAGE_BUTTON, timeout=2):
+                next_button = self.find_element(self.NEXT_PAGE_BUTTON)
+                if next_button.is_enabled():
+                    self.click_element(self.NEXT_PAGE_BUTTON)
+                    self.wait(2)
+                    self.logger.debug("Moved to next page")
+                    return True
+                else:
+                    self.logger.debug("Next page button is disabled")
+                    return False
+            else:
+                self.logger.warning("Next page button not found")
+                return False
+        except Exception as e:
+            self.logger.error(f"Failed to go to next page: {str(e)}")
+            return False
+    
+    def go_to_previous_page(self) -> bool:
+        """
+        이전 페이지로 이동
+        
+        Returns:
+            이동 성공 여부
+        """
+        try:
+            if self.is_element_present(self.PREV_PAGE_BUTTON, timeout=2):
+                prev_button = self.find_element(self.PREV_PAGE_BUTTON)
+                if prev_button.is_enabled():
+                    self.click_element(self.PREV_PAGE_BUTTON)
+                    self.wait(2)
+                    self.logger.debug("Moved to previous page")
+                    return True
+                else:
+                    self.logger.debug("Previous page button is disabled")
+                    return False
+            else:
+                self.logger.warning("Previous page button not found")
+                return False
+        except Exception as e:
+            self.logger.error(f"Failed to go to previous page: {str(e)}")
+            return False
+    
+    def go_to_page(self, page_number: int) -> bool:
+        """
+        특정 페이지로 이동
+        
+        Args:
+            page_number: 페이지 번호
+            
+        Returns:
+            이동 성공 여부
+        """
+        try:
+            if self.is_element_present(self.PAGE_NUMBERS, timeout=2):
+                page_elements = self.find_elements(self.PAGE_NUMBERS)
+                
+                for page_element in page_elements:
+                    if page_element.text.strip() == str(page_number):
+                        page_element.click()
+                        self.wait(2)
+                        self.logger.debug(f"Moved to page {page_number}")
+                        return True
+                
+                self.logger.warning(f"Page {page_number} not found")
+                return False
+            else:
+                self.logger.warning("Page numbers not found")
+                return False
+        except Exception as e:
+            self.logger.error(f"Failed to go to page {page_number}: {str(e)}")
+            return False
+    
+    def get_current_page(self) -> int:
+        """
+        현재 페이지 번호 가져오기
+        
+        Returns:
+            현재 페이지 번호
+        """
+        try:
+            if self.is_element_present(self.CURRENT_PAGE, timeout=2):
+                current_page_text = self.get_text(self.CURRENT_PAGE)
                 # 숫자 추출
                 import re
-                numbers = re.findall(r'\d+', count_text)
+                numbers = re.findall(r'\d+', current_page_text)
                 if numbers:
                     return int(numbers[0])
             
-            # 직접 아이템 개수 세기
-            item_locators = self._find_cart_items()
-            total_count = 0
-            for locator in item_locators:
-                elements = self.find_elements(locator)
-                total_count += len(elements)
-            
-            return total_count
+            return 1  # 기본값
             
         except Exception as e:
-            self.logger.error(f"Error getting cart item count: {str(e)}")
+            self.logger.error(f"Failed to get current page: {str(e)}")
+            return 1
+    
+    # ==================== 행 선택 및 액션 ====================
+    
+    def select_row(self, row_index: int) -> bool:
+        """
+        특정 행 선택
+        
+        Args:
+            row_index: 행 인덱스 (0부터 시작)
+            
+        Returns:
+            선택 성공 여부
+        """
+        try:
+            if self.is_element_present(self.TABLE_ROWS, timeout=2):
+                row_elements = self.find_elements(self.TABLE_ROWS)
+                
+                if row_index < len(row_elements):
+                    row = row_elements[row_index]
+                    
+                    # 체크박스 찾기
+                    try:
+                        checkbox = row.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                        if not checkbox.is_selected():
+                            checkbox.click()
+                            self.logger.debug(f"Row {row_index} selected")
+                            return True
+                    except:
+                        # 체크박스가 없으면 행 자체를 클릭
+                        row.click()
+                        self.logger.debug(f"Row {row_index} clicked")
+                        return True
+                else:
+                    self.logger.warning(f"Row index {row_index} out of range")
+                    return False
+            
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to select row: {str(e)}")
+            return False
+    
+    def select_all_rows(self) -> bool:
+        """
+        모든 행 선택
+        
+        Returns:
+            선택 성공 여부
+        """
+        try:
+            if self.is_element_present(self.SELECT_ALL_CHECKBOX, timeout=2):
+                self.click_element(self.SELECT_ALL_CHECKBOX)
+                self.logger.debug("All rows selected")
+                return True
+            else:
+                self.logger.warning("Select all checkbox not found")
+                return False
+        except Exception as e:
+            self.logger.error(f"Failed to select all rows: {str(e)}")
+            return False
+    
+    # ==================== 테이블 정보 ====================
+    
+    def get_total_records(self) -> int:
+        """
+        총 레코드 수 가져오기
+        
+        Returns:
+            총 레코드 수
+        """
+        try:
+            if self.is_element_present(self.TOTAL_RECORDS, timeout=2):
+                total_text = self.get_text(self.TOTAL_RECORDS)
+                # 숫자 추출
+                import re
+                numbers = re.findall(r'\d+', total_text)
+                if numbers:
+                    return int(numbers[-1])  # 마지막 숫자가 총 개수일 가능성이 높음
+            
+            # 현재 페이지의 행 수로 대체
+            if self.is_element_present(self.TABLE_ROWS, timeout=2):
+                row_elements = self.find_elements(self.TABLE_ROWS)
+                return len(row_elements)
+            
+            return 0
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get total records: {str(e)}")
             return 0
     
-    def get_cart_items_info(self) -> List[Dict[str, Any]]:
+    def is_table_empty(self) -> bool:
         """
-        장바구니 모든 아이템 정보 가져오기
+        테이블이 비어있는지 확인
         
         Returns:
-            장바구니 아이템 정보 리스트
+            테이블이 비어있으면 True
         """
-        items_info = []
-        
         try:
-            item_locators = self._find_cart_items()
-            
-            for locator in item_locators:
-                item_elements = self.find_elements(locator)
-                
-                for i, item_element in enumerate(item_elements):
-                    item_info = {
-                        'index': i,
-                        'name': '',
-                        'price': '',
-                        'quantity': 0,
-                        'total': '',
-                        'sku': '',
-                        'image_url': ''
-                    }
-                    
-                    # 상품명 가져오기
-                    try:
-                        name_element = item_element.find_element(*self.ITEM_NAME)
-                        item_info['name'] = name_element.text.strip()
-                    except:
-                        pass
-                    
-                    # 가격 가져오기
-                    try:
-                        price_element = item_element.find_element(*self.ITEM_PRICE)
-                        item_info['price'] = price_element.text.strip()
-                    except:
-                        pass
-                    
-                    # 수량 가져오기
-                    try:
-                        quantity_element = item_element.find_element(*self.ITEM_QUANTITY)
-                        quantity_text = quantity_element.text.strip()
-                        # 숫자 추출
-                        import re
-                        numbers = re.findall(r'\d+', quantity_text)
-                        if numbers:
-                            item_info['quantity'] = int(numbers[0])
-                    except:
-                        pass
-                    
-                    # 총액 가져오기
-                    try:
-                        total_element = item_element.find_element(*self.ITEM_TOTAL)
-                        item_info['total'] = total_element.text.strip()
-                    except:
-                        pass
-                    
-                    # SKU 가져오기
-                    try:
-                        sku_element = item_element.find_element(*self.ITEM_SKU)
-                        item_info['sku'] = sku_element.text.strip()
-                    except:
-                        pass
-                    
-                    # 이미지 URL 가져오기
-                    try:
-                        image_element = item_element.find_element(*self.ITEM_IMAGE)
-                        item_info['image_url'] = image_element.get_attribute('src')
-                    except:
-                        pass
-                    
-                    items_info.append(item_info)
-                
-                break  # 첫 번째 유효한 로케이터만 사용
-            
-            self.logger.debug(f"Retrieved info for {len(items_info)} cart items")
-            return items_info
-            
-        except Exception as e:
-            self.logger.error(f"Error getting cart items info: {str(e)}")
-            return items_info
-    
-    # ==================== 수량 관리 ====================
-    
-    def update_item_quantity(self, item_index: int, new_quantity: int) -> bool:
-        """
-        특정 아이템의 수량 변경
-        
-        Args:
-            item_index: 아이템 인덱스 (0부터 시작)
-            new_quantity: 새로운 수량
-            
-        Returns:
-            수량 변경 성공 여부
-        """
-        self.logger.debug(f"Updating item {item_index} quantity to {new_quantity}")
-        
-        try:
-            item_locators = self._find_cart_items()
-            
-            for locator in item_locators:
-                item_elements = self.find_elements(locator)
-                
-                if item_index < len(item_elements):
-                    item_element = item_elements[item_index]
-                    
-                    # 수량 입력 필드 찾기
-                    quantity_input = None
-                    
-                    # 기본 로케이터 시도
-                    try:
-                        quantity_input = item_element.find_element(*self.QUANTITY_INPUT)
-                    except:
-                        # 대체 로케이터들 시도
-                        for alt_locator in self.ALT_QUANTITY_INPUT_LOCATORS:
-                            try:
-                                quantity_input = item_element.find_element(*alt_locator)
-                                break
-                            except:
-                                continue
-                    
-                    if quantity_input:
-                        # 수량 입력
-                        quantity_input.clear()
-                        quantity_input.send_keys(str(new_quantity))
-                        
-                        # 업데이트 버튼이 있으면 클릭
-                        try:
-                            update_button = item_element.find_element(*self.UPDATE_QUANTITY_BUTTON)
-                            update_button.click()
-                        except:
-                            # 업데이트 버튼이 없으면 Enter 키 입력
-                            from selenium.webdriver.common.keys import Keys
-                            quantity_input.send_keys(Keys.RETURN)
-                        
-                        # 업데이트 완료 대기
-                        self._wait_for_cart_update()
-                        
-                        self.logger.debug(f"Item {item_index} quantity updated to {new_quantity}")
-                        return True
-                    else:
-                        self.logger.error(f"Quantity input not found for item {item_index}")
-                        return False
-            
-            raise ElementNotFoundException(f"cart item at index {item_index}")
-            
-        except Exception as e:
-            self.logger.error(f"Failed to update item quantity: {str(e)}")
-            return False
-    
-    def increase_item_quantity(self, item_index: int) -> bool:
-        """
-        특정 아이템의 수량 1 증가
-        
-        Args:
-            item_index: 아이템 인덱스 (0부터 시작)
-            
-        Returns:
-            수량 증가 성공 여부
-        """
-        self.logger.debug(f"Increasing quantity for item {item_index}")
-        
-        try:
-            item_locators = self._find_cart_items()
-            
-            for locator in item_locators:
-                item_elements = self.find_elements(locator)
-                
-                if item_index < len(item_elements):
-                    item_element = item_elements[item_index]
-                    
-                    # 수량 증가 버튼 찾기
-                    increase_button = None
-                    
-                    # 기본 로케이터 시도
-                    try:
-                        increase_button = item_element.find_element(*self.QUANTITY_INCREASE)
-                    except:
-                        # 대체 로케이터들 시도
-                        for alt_locator in self.ALT_QUANTITY_INCREASE_LOCATORS:
-                            try:
-                                increase_button = item_element.find_element(*alt_locator)
-                                break
-                            except:
-                                continue
-                    
-                    if increase_button:
-                        increase_button.click()
-                        self._wait_for_cart_update()
-                        self.logger.debug(f"Item {item_index} quantity increased")
-                        return True
-                    else:
-                        self.logger.error(f"Increase button not found for item {item_index}")
-                        return False
-            
-            raise ElementNotFoundException(f"cart item at index {item_index}")
-            
-        except Exception as e:
-            self.logger.error(f"Failed to increase item quantity: {str(e)}")
-            return False
-    
-    def decrease_item_quantity(self, item_index: int) -> bool:
-        """
-        특정 아이템의 수량 1 감소
-        
-        Args:
-            item_index: 아이템 인덱스 (0부터 시작)
-            
-        Returns:
-            수량 감소 성공 여부
-        """
-        self.logger.debug(f"Decreasing quantity for item {item_index}")
-        
-        try:
-            item_locators = self._find_cart_items()
-            
-            for locator in item_locators:
-                item_elements = self.find_elements(locator)
-                
-                if item_index < len(item_elements):
-                    item_element = item_elements[item_index]
-                    
-                    # 수량 감소 버튼 찾기
-                    decrease_button = None
-                    
-                    # 기본 로케이터 시도
-                    try:
-                        decrease_button = item_element.find_element(*self.QUANTITY_DECREASE)
-                    except:
-                        # 대체 로케이터들 시도
-                        for alt_locator in self.ALT_QUANTITY_DECREASE_LOCATORS:
-                            try:
-                                decrease_button = item_element.find_element(*alt_locator)
-                                break
-                            except:
-                                continue
-                    
-                    if decrease_button:
-                        decrease_button.click()
-                        self._wait_for_cart_update()
-                        self.logger.debug(f"Item {item_index} quantity decreased")
-                        return True
-                    else:
-                        self.logger.error(f"Decrease button not found for item {item_index}")
-                        return False
-            
-            raise ElementNotFoundException(f"cart item at index {item_index}")
-            
-        except Exception as e:
-            self.logger.error(f"Failed to decrease item quantity: {str(e)}")
-            return False
-    
-    # ==================== 아이템 제거 ====================
-    
-    def remove_item(self, item_index: int) -> bool:
-        """
-        특정 아이템을 장바구니에서 제거
-        
-        Args:
-            item_index: 제거할 아이템 인덱스 (0부터 시작)
-            
-        Returns:
-            제거 성공 여부
-        """
-        self.logger.debug(f"Removing item at index {item_index}")
-        
-        try:
-            item_locators = self._find_cart_items()
-            
-            for locator in item_locators:
-                item_elements = self.find_elements(locator)
-                
-                if item_index < len(item_elements):
-                    item_element = item_elements[item_index]
-                    
-                    # 제거 버튼 찾기
-                    remove_button = None
-                    
-                    # 기본 로케이터들 시도
-                    for remove_locator in [self.REMOVE_ITEM_BUTTON, self.DELETE_ITEM_BUTTON]:
-                        try:
-                            remove_button = item_element.find_element(*remove_locator)
-                            break
-                        except:
-                            continue
-                    
-                    # 대체 로케이터들 시도
-                    if not remove_button:
-                        for alt_locator in self.ALT_REMOVE_ITEM_LOCATORS:
-                            try:
-                                remove_button = item_element.find_element(*alt_locator)
-                                break
-                            except:
-                                continue
-                    
-                    if remove_button:
-                        remove_button.click()
-                        
-                        # 확인 대화상자가 있으면 확인
-                        try:
-                            if self.is_alert_present(timeout=2):
-                                self.accept_alert()
-                        except:
-                            pass
-                        
-                        self._wait_for_cart_update()
-                        self.logger.debug(f"Item {item_index} removed from cart")
-                        return True
-                    else:
-                        self.logger.error(f"Remove button not found for item {item_index}")
-                        return False
-            
-            raise ElementNotFoundException(f"cart item at index {item_index}")
-            
-        except Exception as e:
-            self.logger.error(f"Failed to remove item: {str(e)}")
-            return False
-    
-    def remove_item_by_name(self, item_name: str) -> bool:
-        """
-        상품명으로 아이템 제거
-        
-        Args:
-            item_name: 제거할 상품명
-            
-        Returns:
-            제거 성공 여부
-        """
-        self.logger.debug(f"Removing item by name: {item_name}")
-        
-        try:
-            items_info = self.get_cart_items_info()
-            
-            for item in items_info:
-                if item_name.lower() in item['name'].lower():
-                    return self.remove_item(item['index'])
-            
-            self.logger.warning(f"Item '{item_name}' not found in cart")
-            return False
-            
-        except Exception as e:
-            self.logger.error(f"Failed to remove item by name: {str(e)}")
-            return False
-    
-    def clear_cart(self) -> bool:
-        """
-        장바구니 전체 비우기
-        
-        Returns:
-            비우기 성공 여부
-        """
-        self.logger.debug("Clearing entire cart")
-        
-        try:
-            # 전체 비우기 버튼이 있으면 사용
-            if self.is_element_present(self.CLEAR_CART_BUTTON, timeout=2):
-                self.click_element(self.CLEAR_CART_BUTTON)
-                
-                # 확인 대화상자가 있으면 확인
-                try:
-                    if self.is_alert_present(timeout=2):
-                        self.accept_alert()
-                except:
-                    pass
-                
-                self._wait_for_cart_update()
-                self.logger.debug("Cart cleared using clear button")
+            # "데이터 없음" 메시지 확인
+            if self.is_element_present(self.NO_DATA_MESSAGE, timeout=2):
                 return True
-            else:
-                # 개별 아이템들을 하나씩 제거
-                item_count = self.get_cart_item_count()
-                
-                for i in range(item_count):
-                    # 항상 첫 번째 아이템 제거 (제거 후 인덱스가 변경되므로)
-                    if not self.remove_item(0):
-                        self.logger.error(f"Failed to remove item at index 0")
-                        return False
-                
-                self.logger.debug("Cart cleared by removing individual items")
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"Failed to clear cart: {str(e)}")
-            return False
-    
-    # ==================== 총액 및 요약 정보 ====================
-    
-    def get_subtotal(self) -> str:
-        """
-        소계 금액 가져오기
-        
-        Returns:
-            소계 금액 문자열
-        """
-        try:
-            if self.is_element_present(self.SUBTOTAL, timeout=2):
-                return self.get_text(self.SUBTOTAL).strip()
-            else:
-                return ""
-        except Exception as e:
-            self.logger.error(f"Error getting subtotal: {str(e)}")
-            return ""
-    
-    def get_tax_amount(self) -> str:
-        """
-        세금 금액 가져오기
-        
-        Returns:
-            세금 금액 문자열
-        """
-        try:
-            if self.is_element_present(self.TAX_AMOUNT, timeout=2):
-                return self.get_text(self.TAX_AMOUNT).strip()
-            else:
-                return ""
-        except Exception as e:
-            self.logger.error(f"Error getting tax amount: {str(e)}")
-            return ""
-    
-    def get_shipping_cost(self) -> str:
-        """
-        배송비 가져오기
-        
-        Returns:
-            배송비 문자열
-        """
-        try:
-            if self.is_element_present(self.SHIPPING_COST, timeout=2):
-                return self.get_text(self.SHIPPING_COST).strip()
-            else:
-                return ""
-        except Exception as e:
-            self.logger.error(f"Error getting shipping cost: {str(e)}")
-            return ""
-    
-    def get_total_amount(self) -> str:
-        """
-        총 금액 가져오기
-        
-        Returns:
-            총 금액 문자열
-        """
-        try:
-            # 기본 로케이터 시도
-            if self.is_element_present(self.TOTAL_AMOUNT, timeout=2):
-                return self.get_text(self.TOTAL_AMOUNT).strip()
             
-            # 대체 로케이터들 시도
-            for locator in self.ALT_TOTAL_AMOUNT_LOCATORS:
-                if self.is_element_present(locator, timeout=1):
-                    return self.get_text(locator).strip()
-            
-            return ""
+            # 행 개수 확인
+            total_records = self.get_total_records()
+            return total_records == 0
             
         except Exception as e:
-            self.logger.error(f"Error getting total amount: {str(e)}")
-            return ""
+            self.logger.error(f"Failed to check if table is empty: {str(e)}")
+            return True
     
-    def get_cart_summary(self) -> Dict[str, Any]:
+    def get_table_summary(self) -> Dict[str, Any]:
         """
-        장바구니 요약 정보 가져오기
+        테이블 요약 정보 가져오기
         
         Returns:
-            장바구니 요약 정보 딕셔너리
+            테이블 요약 정보 딕셔너리
         """
         summary = {
-            'item_count': self.get_cart_item_count(),
-            'subtotal': self.get_subtotal(),
-            'tax_amount': self.get_tax_amount(),
-            'shipping_cost': self.get_shipping_cost(),
-            'discount_amount': '',
-            'total_amount': self.get_total_amount(),
-            'is_empty': self.is_cart_empty()
+            'total_records': self.get_total_records(),
+            'current_page': self.get_current_page(),
+            'headers': self.get_table_headers(),
+            'is_empty': self.is_table_empty(),
+            'visible_rows': 0
         }
         
-        # 할인 금액 가져오기
         try:
-            if self.is_element_present(self.DISCOUNT_AMOUNT, timeout=2):
-                summary['discount_amount'] = self.get_text(self.DISCOUNT_AMOUNT).strip()
-        except:
-            pass
-        
-        self.logger.debug(f"Cart summary: {summary}")
-        return summary
-    
-    # ==================== 쿠폰 및 할인 ====================
-    
-    def apply_coupon(self, coupon_code: str) -> bool:
-        """
-        쿠폰 코드 적용
-        
-        Args:
-            coupon_code: 쿠폰 코드
+            if self.is_element_present(self.TABLE_ROWS, timeout=2):
+                row_elements = self.find_elements(self.TABLE_ROWS)
+                summary['visible_rows'] = len(row_elements)
             
-        Returns:
-            쿠폰 적용 성공 여부
-        """
-        self.logger.debug(f"Applying coupon code: {coupon_code}")
-        
-        try:
-            if not self.is_element_present(self.COUPON_INPUT, timeout=2):
-                self.logger.warning("Coupon input not available")
-                return False
+            self.logger.debug(f"Table summary: {summary}")
+            return summary
             
-            # 쿠폰 코드 입력
-            self.input_text(self.COUPON_INPUT, coupon_code, clear_first=True)
-            
-            # 쿠폰 적용 버튼 클릭
-            if self.is_element_present(self.APPLY_COUPON_BUTTON, timeout=2):
-                self.click_element(self.APPLY_COUPON_BUTTON)
-            else:
-                # Enter 키로 적용
-                from selenium.webdriver.common.keys import Keys
-                self.send_keys(self.COUPON_INPUT, Keys.RETURN)
-            
-            # 적용 결과 대기
-            self._wait_for_cart_update()
-            
-            # 성공 메시지 확인
-            if self.is_element_present(self.SUCCESS_MESSAGE, timeout=3):
-                self.logger.debug(f"Coupon '{coupon_code}' applied successfully")
-                return True
-            elif self.is_element_present(self.ERROR_MESSAGE, timeout=3):
-                error_msg = self.get_text(self.ERROR_MESSAGE)
-                self.logger.warning(f"Coupon application failed: {error_msg}")
-                return False
-            else:
-                # 할인 금액이 표시되면 성공으로 간주
-                if self.is_element_present(self.DISCOUNT_AMOUNT, timeout=2):
-                    discount = self.get_text(self.DISCOUNT_AMOUNT)
-                    if discount and discount != "$0.00":
-                        self.logger.debug(f"Coupon applied, discount: {discount}")
-                        return True
-                
-                return False
-                
         except Exception as e:
-            self.logger.error(f"Failed to apply coupon: {str(e)}")
-            return False
-    
-    def remove_coupon(self) -> bool:
-        """
-        적용된 쿠폰 제거
-        
-        Returns:
-            쿠폰 제거 성공 여부
-        """
-        self.logger.debug("Removing applied coupon")
-        
-        try:
-            if self.is_element_present(self.REMOVE_COUPON_BUTTON, timeout=2):
-                self.click_element(self.REMOVE_COUPON_BUTTON)
-                self._wait_for_cart_update()
-                self.logger.debug("Coupon removed successfully")
-                return True
-            else:
-                self.logger.warning("Remove coupon button not found")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Failed to remove coupon: {str(e)}")
-            return False
-    
-    # ==================== 체크아웃 ====================
-    
-    def proceed_to_checkout(self) -> bool:
-        """
-        체크아웃으로 진행
-        
-        Returns:
-            체크아웃 진행 성공 여부
-        """
-        self.logger.debug("Proceeding to checkout")
-        
-        try:
-            # 장바구니가 비어있는지 확인
-            if self.is_cart_empty():
-                self.logger.warning("Cannot checkout with empty cart")
-                return False
-            
-            # 체크아웃 버튼 찾기 및 클릭
-            checkout_button_locator = self._find_checkout_button()
-            self.click_element(checkout_button_locator)
-            
-            # 체크아웃 페이지 로딩 대기
-            self.wait(2)  # 페이지 전환 대기
-            
-            # URL 변경 확인
-            current_url = self.get_current_url()
-            if 'checkout' in current_url.lower() or 'payment' in current_url.lower():
-                self.logger.debug("Successfully proceeded to checkout")
-                return True
-            else:
-                self.logger.warning("Checkout page not loaded")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Failed to proceed to checkout: {str(e)}")
-            return False
-    
-    def continue_shopping(self) -> bool:
-        """
-        쇼핑 계속하기
-        
-        Returns:
-            쇼핑 계속하기 성공 여부
-        """
-        self.logger.debug("Continuing shopping")
-        
-        try:
-            if self.is_element_present(self.CONTINUE_SHOPPING_BUTTON, timeout=2):
-                self.click_element(self.CONTINUE_SHOPPING_BUTTON)
-                self.wait(2)  # 페이지 전환 대기
-                self.logger.debug("Continued shopping")
-                return True
-            else:
-                self.logger.warning("Continue shopping button not found")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Failed to continue shopping: {str(e)}")
-            return False
-    
-    # ==================== 유틸리티 메서드 ====================
-    
-    def _wait_for_cart_update(self) -> None:
-        """장바구니 업데이트 완료 대기"""
-        # 로딩 인디케이터가 있으면 사라질 때까지 대기
-        if self.is_element_present(self.LOADING_INDICATOR, timeout=2):
-            self.logger.debug("Waiting for cart update to complete")
-            self.wait_for_element_invisible(self.LOADING_INDICATOR, timeout=self.update_timeout)
-        
-        # 짧은 대기 (JavaScript 처리 시간)
-        self.wait(1)
-    
-    def refresh_cart(self) -> None:
-        """장바구니 새로고침"""
-        self.logger.debug("Refreshing cart")
-        self.refresh_page()
-        self.wait_for_cart_page_load()
-    
-    def take_cart_screenshot(self, filename: str = None) -> str:
-        """
-        장바구니 페이지 스크린샷 촬영
-        
-        Args:
-            filename: 파일명
-            
-        Returns:
-            저장된 파일 경로
-        """
-        if filename is None:
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"cart_page_{timestamp}.png"
-        
-        return self.take_screenshot(filename)
-    
-    def __str__(self) -> str:
-        """문자열 표현"""
-        return f"CartPage(url={self.get_current_url()}, items={self.get_cart_item_count()})"
+            self.logger.error(f"Failed to get table summary: {str(e)}")
+            return summary
